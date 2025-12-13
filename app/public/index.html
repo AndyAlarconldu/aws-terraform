@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Hello World - Andy Alarcón</title>
+</head>
+<body>
+  <h1>Hello World - ANDY ALARCON PRUEBA INTERMEDIA</h1>
+  <p>Frontend servido desde Node + Docker + AWS con Auto Scaling.</p>
+
+  <button id="btn">Llamar backend</button>
+  <p id="respuesta"></p>
+
+  <script>
+    document.getElementById("btn").addEventListener("click", async () => {
+      try {
+        const res = await fetch("/api/hello");
+        const data = await res.json();
+        document.getElementById("respuesta").innerText = data.message;
+      } catch (err) {
+        document.getElementById("respuesta").innerText = "Error llamando al backend";
+      }
+    });
+  </script>
+</body>
+</html>
