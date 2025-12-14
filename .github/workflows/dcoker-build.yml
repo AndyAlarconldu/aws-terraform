@@ -1,21 +1,18 @@
-name: Build and Push Docker Image to Docker Hub
+name: Build and Push Docker Image
 
 on:
-  workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
     paths:
       - "app/**"
       - ".github/workflows/docker-build.yml"
 
-
 jobs:
-  docker:
+  build-and-push:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
@@ -27,9 +24,9 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: ./app
           push: true
-          tags: andyxalarcon/aws-terraform:1.0.0
+          tags: andyxalarcon/test-terraform:1.0.0
