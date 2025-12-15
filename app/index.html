@@ -1,24 +1,24 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <title>Hello World - Andy Alarcón</title>
 </head>
 <body>
-<h1>Hello World probando desde terraform- Andy Alarcon- AUG-LB-EC2</h1>
-  <p>Frontend servido desde Node + Docker + AWS con Auto Scaling.</p>
+  <h1>HELLO WORLD - TERRAFORM - AWS - LOAD BALANCER - ASG</h1>
+  <p>Frontend running ✅</p>
 
-  <button id="btn">Llamar backend</button>
-  <p id="respuesta"></p>
+  <button id="btn">Call Backend (/api/hello)</button>
+  <p id="out"></p>
 
   <script>
     document.getElementById("btn").addEventListener("click", async () => {
       try {
-        const res = await fetch("/api/hello");
-        const data = await res.json();
-        document.getElementById("respuesta").innerText = data.message;
-      } catch (err) {
-        document.getElementById("respuesta").innerText = "Error llamando al backend";
+        const r = await fetch("/api/hello");
+        const data = await r.json();
+        document.getElementById("out").innerText = data.message;
+      } catch (e) {
+        document.getElementById("out").innerText = "Backend not responding ❌";
       }
     });
   </script>
