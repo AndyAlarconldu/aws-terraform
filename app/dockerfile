@@ -1,15 +1,13 @@
-FROM nginx:alpine
+FROM node:20-alpine
 
-# Limpia la carpeta por defecto de Nginx
-RUN rm -rf /usr/share/nginx/html/*
+WORKDIR /app
 
-# Copia tu frontend y el logo (deben estar dentro de /app)
-COPY index.html /usr/share/nginx/html/index.html
-COPY uce-logo.png /usr/share/nginx/html/uce-logo.png
+COPY package.json ./
+RUN npm install --omit=dev
 
-# Puerto de Nginx
-EXPOSE 80
+COPY server.js ./
+COPY index.html ./
 
-# Ejecuta Nginx
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 3000
+CMD ["npm", "start"]
 
