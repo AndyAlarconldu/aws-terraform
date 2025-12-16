@@ -11,7 +11,10 @@ provider "aws" {
   region = var.aws_region
 }
 
-# Usar la VPC por defecto
+#########################
+# VPC por defecto
+#########################
+
 data "aws_vpc" "default" {
   default = true
 }
@@ -24,7 +27,7 @@ data "aws_subnets" "default" {
 }
 
 #########################
-# Variables locales para la imagen Docker
+# Imagen Docker
 #########################
 
 locals {
@@ -37,7 +40,7 @@ locals {
 # Security Groups
 #########################
 
-# SG para el Load Balancer (HTTP desde internet)
+# SG del ALB (HTTP desde internet)
 resource "aws_security_group" "alb_sg" {
   name        = "${var.app_name}-alb-sg"
   description = "Allow HTTP from internet"
@@ -59,19 +62,28 @@ resource "aws_security_group" "alb_sg" {
   }
 }
 
-# SG para las instancias EC2 (reciben solo del ALB en 3000)
+# SG de EC2 (solo recibe del ALB al puerto 3000)
 resource "aws_security_group" "ec2_sg" {
   name        = "${var.app_name}-ec2-sg"
   description = "Allow app traffic from ALB"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
-    description     = "HTTP from ALB"
+    description     = "App traffic from ALB"
     from_port       = 3000
     to_port         = 3000
     protocol        = "tcp"
     security_groups = [aws_security_group.alb_sg.id]
   }
+
+  # (Opcional) SSH solo si lo necesitas (recomendado limitar a tu IP)
+  # ingress {
+  #   description = "SSH"
+  #   from_port   = 22
+  #   to_port     = 22
+  #   protocol    = "tcp"
+  #   cidr_blocks = ["TU_IP/32"]
+  # }
 
   egress {
     from_port   = 0
@@ -100,18 +112,18 @@ resource "aws_lb_target_group" "this" {
   vpc_id   = data.aws_vpc.default.id
 
   health_check {
-    path                = "/"
+    path                = "/health"      # ✅ CAMBIO CLAVE
     matcher             = "200-399"
-    interval            = 30
+    interval            = 15
     timeout             = 5
-    healthy_threshold   = 3
-    unhealthy_threshold = 3
+    healthy_threshold   = 2
+    unhealthy_threshold = 2
   }
 }
 
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.this.arn
-  port              = "80"
+  port              = 80
   protocol          = "HTTP"
 
   default_action {
@@ -121,18 +133,27 @@ resource "aws_lb_listener" "http" {
 }
 
 #########################
-# AMI para las instancias (Amazon Linux 2023)
+# AMI Amazon Linux 2023
 #########################
 
 data "aws_ami" "amazon_linux" {
   most_recent = true
+  owners      = ["137112412989"] # Amazon
 
   filter {
     name   = "name"
     values = ["al2023-ami-*-x86_64"]
   }
 
-  owners = ["137112412989"] # Amazon
+  filter {
+    name   = "virtualization-type"
+    values = ["hvm"]
+  }
+
+  filter {
+    name   = "root-device-type"
+    values = ["ebs"]
+  }
 }
 
 #########################
@@ -147,23 +168,34 @@ resource "aws_launch_template" "this" {
   vpc_security_group_ids = [aws_security_group.ec2_sg.id]
 
   user_data = base64encode(<<-EOF
-              #!/bin/bash
-              yum update -y
-              yum install -y docker
-              systemctl enable docker
-              systemctl start docker
+    #!/bin/bash
+    set -euxo pipefail
 
-              # por si hay contenedor viejo
-              docker rm -f app || true
+    # Amazon Linux 2023 usa dnf (no yum)
+    dnf update -y
+    dnf install -y docker
 
-              docker pull ${local.docker_image}
-              docker run -d -p 3000:3000 --name app ${local.docker_image}
-              EOF
+    systemctl enable docker
+    systemctl start docker
+
+    # Esperar a que docker esté listo
+    sleep 5
+
+    # Limpiar contenedor viejo
+    docker rm -f app || true
+
+    # Pull + run
+    docker pull ${local.docker_image}
+    docker run -d --restart always -p 3000:3000 --name app ${local.docker_image}
+
+    # Log para debug
+    docker ps
+  EOF
   )
 }
 
 #########################
-# Auto Scaling Group (min 3, max 4)
+# Auto Scaling Group
 #########################
 
 resource "aws_autoscaling_group" "this" {
@@ -173,7 +205,7 @@ resource "aws_autoscaling_group" "this" {
   desired_capacity          = 3
   vpc_zone_identifier       = data.aws_subnets.default.ids
   health_check_type         = "ELB"
-  health_check_grace_period = 60
+  health_check_grace_period = 180  # ✅ dale tiempo a instalar docker + pull
 
   launch_template {
     id      = aws_launch_template.this.id
