@@ -101,7 +101,7 @@ resource "aws_lb_target_group" "this" {
 
   health_check {
     path                = "/"
-    matcher             = "200"
+    matcher             = "200-399"
     interval            = 30
     timeout             = 5
     healthy_threshold   = 3
@@ -172,7 +172,7 @@ resource "aws_autoscaling_group" "this" {
   min_size                  = 3
   desired_capacity          = 3
   vpc_zone_identifier       = data.aws_subnets.default.ids
-  health_check_type         = "EC2"
+  health_check_type         = "ELB"
   health_check_grace_period = 60
 
   launch_template {
